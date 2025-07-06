@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndustrialHoney - Live Attack Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.2em; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover { transform: translateY(-5px); }
+
+        .card h3 {
+            color: #64b5f6;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+
+        .attack-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .attack-item {
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .sensor-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .sensor-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #4caf50;
+            margin: 10px 0;
+        }
+
+        .demo-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .demo-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(255,107,107,0.4);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏭 IndustrialHoney Dashboard</h1>
+        <p><span class="status-indicator"></span>Real-time Industrial Threat Monitoring</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3>📊 Attack Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-attacks">0</div>
+                    <div>Total Attacks</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="unique-ips">0</div>
+                    <div>Unique IPs</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="last-attack">Never</div>
+                    <div>Last Attack</div>
+                </div>
+            </div>
+
+            <button class="demo-button" onclick="triggerDemoAttack()">
+                🚨 Trigger Demo Attack
+            </button>
+        </div>
+
+        <div class="card">
+            <h3>🔍 Live Sensor Data</h3>
+            <div class="sensor-grid" id="sensor-data">
+                <div class="sensor-item">
+                    <div>Turbine Speed</div>
+                    <div class="sensor-value">--</div>
+                    <div>RPM</div>
+                </div>
+                <div class="sensor-item">
+                    <div>Boost Pressure</div>
+                    <div class="sensor-value">--</div>
+                    <div>kPa</div>
+                </div>
+                <div class="sensor-item">
+                    <div>Exhaust Temp</div>
+                    <div class="sensor-value">--</div>
+                    <div>°C</div>
+                </div>
+                <div class="sensor-item">
+                    <div>Oil Pressure</div>
+                    <div class="sensor-value">--</div>
+                    <div>bar</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+            <h3>🚨 Recent Security Incidents</h3>
+            <div class="attack-list" id="attack-list">
+                <p style="text-align: center; opacity: 0.7;">No attacks detected yet. System is secure.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        socket.on('connect', function() {
+            console.log('Connected to dashboard');
+        });
+
+        socket.on('dashboard_data', function(data) {
+            updateDashboard(data);
+        });
+
+        socket.on('new_attack', function(attack) {
+            addAttackToList(attack);
+            updateStats();
+        });
+
+        function updateDashboard(data) {
+            // Update stats
+            document.getElementById('total-attacks').textContent = data.stats.total_attacks;
+            document.getElementById('unique-ips').textContent = data.stats.unique_ips;
+
+            if (data.stats.last_attack) {
+                const lastAttack = new Date(data.stats.last_attack);
+                document.getElementById('last-attack').textContent = lastAttack.toLocaleTimeString();
+            }
+
+            // Update attack list
+            const attackList = document.getElementById('attack-list');
+            attackList.innerHTML = '';
+
+            if (data.attacks.length === 0) {
+                attackList.innerHTML = '<p style="text-align: center; opacity: 0.7;">No attacks detected yet. System is secure.</p>';
+            } else {
+                data.attacks.reverse().forEach(attack => {
+                    addAttackToList(attack, false);
+                });
+            }
+        }
+
+        function addAttackToList(attack, animate = true) {
+            const attackList = document.getElementById('attack-list');
+
+            if (attackList.children.length === 1 && attackList.children[0].tagName === 'P') {
+                attackList.innerHTML = '';
+            }
+
+            const attackDiv = document.createElement('div');
+            attackDiv.className = 'attack-item';
+
+            attackDiv.innerHTML = `
+                <strong>🚨 ${attack.attack_type}</strong><br>
+                <small>Time: ${new Date(attack.timestamp).toLocaleString()}</small><br>
+                <small>Source: ${attack.client_ip}</small><br>
+                ${attack.register ? `<small>Register: ${attack.register}, Value: ${attack.value}</small>` : ''}
+            `;
+
+            attackList.insertBefore(attackDiv, attackList.firstChild);
+
+            // Keep only last 20 attacks
+            while (attackList.children.length > 20) {
+                attackList.removeChild(attackList.lastChild);
+            }
+        }
+
+        function triggerDemoAttack() {
+            fetch('/api/demo/trigger-attack')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Demo attack triggered');
+                });
+        }
+
+        // Update stats from current data
+        function updateStats() {
+            fetch('/api/dashboard-data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('total-attacks').textContent = data.stats.total_attacks;
+                    document.getElementById('unique-ips').textContent = data.stats.unique_ips;
+                });
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(updateStats, 30000);
+    </script>
+</body>
+</html>

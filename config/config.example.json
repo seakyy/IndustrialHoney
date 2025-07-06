@@ -1,0 +1,35 @@
+{
+    "modbus": {
+        "port": 502,
+        "dev_port": 5020,
+        "devices": [
+            {
+                "unit_id": 1,
+                "device_type": "turbocharger",
+                "manufacturer": "ABB",
+                "model": "TPL-77K",
+                "description": "Marine Turbocharger Control Unit"
+            }
+        ]
+    },
+    "alerts": {
+        "email": {
+            "smtp_server": "smtp-mail.outlook.com",
+            "port": 587,
+            "sender": "your-email@outlook.com",
+            "password": "your-app-password",
+            "recipient": "security-team@company.com"
+        }
+    },
+    "detection": {
+        "max_connections_per_minute": 10,
+        "suspicious_function_codes": [8, 17, 20, 21],
+        "alert_threshold": 3,
+        "geo_blocking": ["CN", "RU", "KP"]
+    },
+    "dashboard": {
+        "host": "0.0.0.0",
+        "port": 5000,
+        "debug": false
+    }
+}
